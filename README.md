@@ -1,5 +1,7 @@
 # orknux-cli
 
+[![build](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml/badge.svg)](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml)
+
 `orkx`, the command line client for
 [orknux-server](https://github.com/michjak-szymanski/orknux-server).
 
