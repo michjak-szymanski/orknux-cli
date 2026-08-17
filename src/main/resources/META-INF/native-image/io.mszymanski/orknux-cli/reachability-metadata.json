@@ -1,0 +1,8 @@
+{
+  "comment": "What orkx reads out of its own jar: the version that --version prints, filtered in by Maven. Picocli's annotation processor writes the rest, into a picocli-generated directory beside this one.",
+  "resources": [
+    {
+      "glob": "orkx-version.properties"
+    }
+  ]
+}
