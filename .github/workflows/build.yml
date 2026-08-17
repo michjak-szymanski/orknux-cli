@@ -21,6 +21,10 @@ jobs:
   test:
     name: test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    # Beyond reading the code, the only thing this needs is to write the test count to the
+    # badges branch. Nothing else in the repository is writable from here.
+    permissions:
+      contents: write
     strategy:
       # One failing platform should not hide the other's result.
       fail-fast: false
@@ -38,6 +42,51 @@ jobs:
 
       - name: Test
         run: ./mvnw --batch-mode test
+
+      # The number on the README badge is counted from the surefire reports rather than typed
+      # into the README, where it would be wrong the first time somebody adds a test and
+      # forgets. Linux only: both platforms run the same suite, and a badge two jobs race to
+      # write reads as whichever finished last.
+      - name: Count what passed
+        id: count
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import glob
+          import xml.etree.ElementTree as ElementTree
+
+          totals = dict(tests=0, failures=0, errors=0, skipped=0)
+          for report in glob.glob("target/surefire-reports/TEST-*.xml"):
+              suite = ElementTree.parse(report).getroot()
+              for name in totals:
+                  totals[name] += int(suite.get(name, 0))
+
+          passed = totals["tests"] - totals["failures"] - totals["errors"] - totals["skipped"]
+          print("passed=%d" % passed)
+          PY
+
+      # An orphan branch, force pushed: the badge only ever wants the current number, so the
+      # branch stays a single commit and never grows. It is not on main, so writing it cannot
+      # set this workflow off again.
+      - name: Publish the count for the badge
+        if: matrix.os == 'ubuntu-latest' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          PASSED: ${{ steps.count.outputs.passed }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          work=$(mktemp -d)
+          printf '{"schemaVersion":1,"label":"tests","message":"%s passing","color":"brightgreen"}\n' \
+            "$PASSED" > "$work/tests.json"
+          cd "$work"
+          git init -q -b badges
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests.json
+          git commit -q -m "tests: $PASSED passing"
+          git push -q --force "https://x-access-token:$TOKEN@github.com/$REPOSITORY.git" badges
 
       - name: Keep the reports of a failed run
         if: failure()
