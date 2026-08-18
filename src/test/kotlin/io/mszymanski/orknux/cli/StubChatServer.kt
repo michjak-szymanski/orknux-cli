@@ -1,3 +1,8 @@
+// Copyright (C) 2026 Michał Szymański
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See NOTICE for the additional term under section 7(b): the attribution this
+// program prints must be preserved.
+
 package io.mszymanski.orknux.cli
 
 import com.sun.net.httpserver.HttpExchange

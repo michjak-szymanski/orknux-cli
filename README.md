@@ -2,6 +2,7 @@
 
 [![build](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml/badge.svg)](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml)
 [![tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmichjak-szymanski%2Forknux-cli%2Fbadges%2Ftests.json)](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml)
+[![licence: AGPL v3 or later](https://img.shields.io/badge/licence-AGPL--3.0--or--later-blue)](LICENSE)
 
 `orkx`, the command line client for
 [orknux-server](https://github.com/michjak-szymanski/orknux-server).
@@ -559,6 +560,8 @@ dependency earns its place by being needed at the wire.
 
 ## Licence
 
-Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+**GNU Affero General Public License v3.0 or later** — see [LICENSE](LICENSE)
+and [NOTICE](NOTICE), which carries the section 7(b) term requiring the
+attribution this program prints to be preserved.
 
-Copyright 2026 Michał Jakub Szymański.
+Copyright (C) 2026 Michał Szymański.

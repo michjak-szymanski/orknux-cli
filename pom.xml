@@ -27,15 +27,19 @@
 
     <licenses>
         <license>
-            <name>Apache License, Version 2.0</name>
-            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <name>GNU Affero General Public License v3.0 or later</name>
+            <url>https://www.gnu.org/licenses/agpl-3.0.txt</url>
             <distribution>repo</distribution>
+            <comments>
+                With an additional term under section 7(b) requiring the attribution this program
+                prints to be preserved. See NOTICE.
+            </comments>
         </license>
     </licenses>
 
     <developers>
         <developer>
-            <name>Michał Jakub Szymański</name>
+            <name>${copyright.holder}</name>
         </developer>
     </developers>
 
@@ -63,6 +67,12 @@
         <maven-resources-plugin.version>3.4.0</maven-resources-plugin.version>
         <!-- The binary's name, and so the name of every generated config that keys off it. -->
         <image.name>orkx</image.name>
+        <!--
+            One place for what the licence protects: the developer entry below, and the
+            attribution the version option prints, both read these.
+        -->
+        <copyright.holder>Michał Szymański</copyright.holder>
+        <licence.name>AGPL-3.0-or-later</licence.name>
         <main.class>io.mszymanski.orknux.cli.OrkxKt</main.class>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>

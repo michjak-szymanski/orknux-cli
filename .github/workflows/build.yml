@@ -31,10 +31,10 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 25
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '25'
           distribution: temurin
@@ -90,7 +90,7 @@ jobs:
 
       - name: Keep the reports of a failed run
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: surefire-${{ matrix.os }}
           path: target/surefire-reports/
@@ -99,7 +99,7 @@ jobs:
     name: native image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # GraalVM rather than a plain JDK: the point of this job is that the native profile
       # still builds, which a change to reachability metadata can break while every test passes.
@@ -122,7 +122,7 @@ jobs:
           ./target/orkx help > /dev/null
           ./target/orkx completion bash > /dev/null
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: orkx-linux-x64
           path: target/orkx

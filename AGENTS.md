@@ -7,6 +7,7 @@ for what `orkx` is and how to run it.
 
 ```
 ./mvnw test                                  # the suite, and what CI runs
+git tag v1.2.3 && git push origin v1.2.3     # builds the three binaries, drafts a release
 ./mvnw package                               # target/orkx.jar
 native.cmd  /  ./native.sh                   # target/orkx[.exe], needs GraalVM
 install.cmd /  ./install.sh                  # that binary, onto PATH
@@ -56,6 +57,10 @@ answers with a session cookie. Worth knowing before adding a command:
 
 ## Conventions
 
+- **Every Kotlin file opens with the SPDX header, and the attribution stays in `--version`.**
+  The licence is AGPL-3.0-or-later with a section 7(b) term requiring the attribution the
+  program prints to be preserved, so `OrkxVersion` returning only a version would empty the
+  term of its subject. New file, same four lines; see CONTRIBUTING.md.
 - **One file per concern, DTOs beside the code that exchanges them.** `SessionClient.kt`
   holds the request and response types for the endpoint it calls, the way the server
   keeps its DTOs next to the controller.

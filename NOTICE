@@ -1,5 +1,52 @@
 orknux-cli
-Copyright 2026 Michał Jakub Szymański
+Copyright (C) 2026 Michał Szymański
 
-Licensed under the Apache License, Version 2.0.
-See LICENSE for the full text.
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License along
+with this program. If not, see <https://www.gnu.org/licenses/>.
+
+
+ADDITIONAL TERMS UNDER SECTION 7
+--------------------------------
+
+As permitted by section 7(b) of the GNU Affero General Public License, the
+following additional term applies to this program and to any work based on it:
+
+    You must preserve the attribution this program prints — the name, the
+    copyright notice above, the name of the licence, and the link to the source
+    — where it prints it, which is `orkx --version` and `orkx help`.
+
+    You may add your own name beside it. You may not remove it.
+
+This is an attribution requirement and nothing more. It does not restrict what
+you may do with the software, what you may charge for it, or who may run it.
+
+Section 7 permits a recipient to remove additional terms from material they have
+received. That permission does not reach this one: 7(b) is the category the
+licence allows to be made non-removable, being the preservation of legal notices
+and author attribution.
+
+
+WHAT THIS MEANS IN PRACTICE
+---------------------------
+
+You may use orkx, including at work, and against a server you charge other
+people for. You may modify it, and you may ship your modified version.
+
+If you convey a modified version you must make its complete source available
+under this same licence. This is a command line client rather than a network
+service, so section 13 rarely arises for it — but the server it talks to is
+under the same licence, where it arises constantly.
+
+The name "Orknux" and the Orknux marks are not licensed by this document.
+
+A commercial licence — which lifts the attribution requirement above and the
+source obligations of the AGPL — is available from the copyright holder.

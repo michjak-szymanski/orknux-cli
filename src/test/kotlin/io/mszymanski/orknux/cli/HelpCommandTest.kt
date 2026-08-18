@@ -1,3 +1,8 @@
+// Copyright (C) 2026 Michał Szymański
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See NOTICE for the additional term under section 7(b): the attribution this
+// program prints must be preserved.
+
 package io.mszymanski.orknux.cli
 
 import org.junit.jupiter.api.Test
@@ -5,6 +10,7 @@ import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class HelpCommandTest {
@@ -18,6 +24,36 @@ class HelpCommandTest {
         assertTrue(lines.first().startsWith("orkx "), lines.first())
         assertContains(result.out, "Command line client for orknux-server.")
         assertContains(result.out, "Commands:")
+    }
+
+    /**
+     * The licence's section 7(b) term requires this attribution to be preserved where the
+     * program prints it, so a change that drops it is a change that empties the term.
+     */
+    @Test
+    fun `--version carries the attribution the licence protects`() {
+        val out = run("--version").out
+
+        assertContains(out, "Copyright (C)")
+        assertContains(out, "Michał Szymański")
+        assertContains(out, "AGPL-3.0-or-later")
+        assertContains(out, "NOTICE")
+        assertContains(out, "https://github.com/michjak-szymanski/orknux-cli")
+    }
+
+    /** `orkx --version | head -1` stays a version string for anything that reads it that way. */
+    @Test
+    fun `--version keeps the version on a line of its own`() {
+        val first = run("--version").out.trimEnd().lines().first()
+
+        assertTrue(first.startsWith("orkx "), first)
+        assertFalse(first.contains("Copyright"), first)
+    }
+
+    /** Printed where it is read, not only where it is filed: help shows it too. */
+    @Test
+    fun `help carries the attribution as well`() {
+        assertContains(help().out, "AGPL-3.0-or-later")
     }
 
     /** One source for it, so `orkx help` and `orkx --version` cannot disagree. */

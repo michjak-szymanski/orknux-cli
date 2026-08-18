@@ -1,3 +1,8 @@
+// Copyright (C) 2026 Michał Szymański
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// See NOTICE for the additional term under section 7(b): the attribution this
+// program prints must be preserved.
+
 package io.mszymanski.orknux.cli
 
 import picocli.CommandLine
@@ -143,12 +148,30 @@ object ExitCode {
     const val DEGRADED = 6
 }
 
-/** Reads the version Maven filtered into the jar, rather than one hardcoded here to drift. */
+/**
+ * What `orkx --version` prints, and what `orkx help` prints above the help.
+ *
+ * All of it is filtered into the jar by Maven rather than hardcoded here, so neither the
+ * version nor the name can drift from the pom. The lines below the version are the attribution
+ * the licence's section 7(b) term requires to be preserved — a term protecting notices the
+ * program never printed would protect nothing.
+ */
 class OrkxVersion : IVersionProvider {
     override fun getVersion(): Array<String> {
         val properties = Properties()
-        OrkxVersion::class.java.getResourceAsStream(VERSION_RESOURCE)?.use(properties::load)
-        return arrayOf("orkx ${properties.getProperty("version") ?: "unknown"}")
+        OrkxVersion::class.java.getResourceAsStream(VERSION_RESOURCE)?.use { resource ->
+            // As UTF-8, and by a Reader: Properties.load(InputStream) decodes ISO-8859-1,
+            // which would leave the ł of the name it carries as two wrong characters.
+            resource.reader(Charsets.UTF_8).use(properties::load)
+        }
+        // The version keeps the first line to itself, so `orkx --version | head -1` is still
+        // a version string for anything reading it that way.
+        return listOfNotNull(
+            "orkx ${properties.getProperty("version") ?: "unknown"}",
+            properties.getProperty("copyright"),
+            properties.getProperty("licence"),
+            properties.getProperty("source"),
+        ).toTypedArray()
     }
 
     private companion object {

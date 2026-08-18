@@ -1,0 +1,121 @@
+# What turns a tag into something people can download.
+#
+# A CLI nobody can get without cloning and building it is a CLI nobody gets, so a tag builds
+# the native binary on all three platforms and attaches them to a release, with checksums.
+#
+# Publishing is the gh CLI rather than a third-party action: it is already on every runner,
+# and a release job is the last place to hand a token to somebody else's code.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  # For a dry run, or to rebuild a release whose assets went wrong.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build, e.g. v1.0.0'
+        required: true
+
+jobs:
+  binaries:
+    name: ${{ matrix.asset }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # One platform failing should not cost the other two their binaries; the release is
+      # assembled only if all three arrive, but a rerun then needs to rebuild one, not three.
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: orkx-linux-x64
+            built: target/orkx
+          - os: windows-latest
+            asset: orkx-windows-x64.exe
+            built: target/orkx.exe
+          - os: macos-latest
+            asset: orkx-macos-arm64
+            built: target/orkx
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Set up GraalVM 25
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: graalvm-community
+          cache: maven
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # The pom stays on -SNAPSHOT in git; the tag is what a released binary should report,
+      # so it is set here rather than committed. Without this, `orkx --version` on a v1.0.0
+      # download would say 1.0.0-SNAPSHOT.
+      - name: Take the version from the tag
+        shell: bash
+        env:
+          REF: ${{ inputs.tag || github.ref_name }}
+        run: |
+          version="${REF#v}"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          ./mvnw --batch-mode versions:set -DnewVersion="$version" -DgenerateBackupPoms=false
+
+      - name: Build the binary
+        run: ./mvnw --batch-mode -Pnative package -DskipTests
+
+      # A binary that builds can still refuse its own options, and one that prints the wrong
+      # version is worse than one that fails: check both before it is ever published.
+      - name: Check it runs, and says the right version
+        shell: bash
+        run: |
+          "${{ matrix.built }}" help > /dev/null
+          "${{ matrix.built }}" --version
+          "${{ matrix.built }}" --version | head -1 | grep -qx "orkx $VERSION"
+
+      - name: Name it for the platform, and sum it
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "${{ matrix.built }}" "dist/${{ matrix.asset }}"
+          cd dist
+          # sha256sum on Linux and Git Bash, shasum on macOS, which has no sha256sum.
+          if command -v sha256sum > /dev/null; then
+            sha256sum "${{ matrix.asset }}" > "${{ matrix.asset }}.sha256"
+          else
+            shasum -a 256 "${{ matrix.asset }}" > "${{ matrix.asset }}.sha256"
+          fi
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: ${{ matrix.asset }}
+          path: dist/
+
+  publish:
+    name: publish the release
+    needs: binaries
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+
+      # Created as a draft: the notes are generated, and a release is not the thing to publish
+      # unread. Publishing it is one click, or one `gh release edit --draft=false`.
+      - name: Draft the release, with everything attached
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          ls -l dist
+          # Rerunnable: a second run of the same tag replaces the assets rather than failing
+          # on a release that already exists.
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+          else
+            gh release create "$TAG" dist/* --draft --title "$TAG" --generate-notes
+          fi
