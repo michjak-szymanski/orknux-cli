@@ -52,9 +52,12 @@ jobs:
         id: auth
         env:
           TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         shell: bash
         run: |
-          if [ -n "$TOKEN" ] && [ "$GITHUB_EVENT_NAME" != 'pull_request' ]; then
+          # Both, not either: signing in with a token and an empty username is a failed job
+          # rather than a skipped push, which is the opposite of what this is for.
+          if [ -n "$TOKEN" ] && [ -n "$USERNAME" ] && [ "$GITHUB_EVENT_NAME" != 'pull_request' ]; then
             echo 'push=true' >> "$GITHUB_OUTPUT"
           else
             echo 'push=false' >> "$GITHUB_OUTPUT"
