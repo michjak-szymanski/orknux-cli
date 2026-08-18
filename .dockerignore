@@ -1,0 +1,22 @@
+# What the image build has no use for. Keeping the context small is most of what makes a
+# rebuild quick, and target/ in particular would ship a host-built binary into a stage that
+# is about to build its own.
+target/
+.git/
+.github/
+.idea/
+*.iml
+
+# Built on Linux, from source. The Windows and POSIX helpers are for a person at a terminal.
+install.cmd
+install.ps1
+install.sh
+native.cmd
+native.sh
+mvnw.cmd
+
+Dockerfile
+.dockerignore
+README.md
+AGENTS.md
+CONTRIBUTING.md

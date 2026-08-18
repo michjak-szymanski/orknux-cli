@@ -11,6 +11,7 @@ git tag v1.2.3 && git push origin v1.2.3     # builds the three binaries, drafts
 ./mvnw package                               # target/orkx.jar
 native.cmd  /  ./native.sh                   # target/orkx[.exe], needs GraalVM
 install.cmd /  ./install.sh                  # that binary, onto PATH
+docker build -t orkx .                       # the image, binary and all, from a clean tree
 ./mvnw test -Dtest=LoginCommandTest          # one class
 ```
 

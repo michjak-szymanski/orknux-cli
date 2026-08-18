@@ -1,0 +1,164 @@
+# What turns a commit into an image on Docker Hub.
+#
+# Two architectures, each built on a runner of that architecture rather than under QEMU:
+# native-image is a compiler, and compiling it emulated takes the better part of an hour
+# where the native runner takes minutes. GitHub's arm64 runners are free on public
+# repositories, so this costs nothing but the wiring — each arch pushes an untagged image
+# by digest, and a last job binds the two digests together under the real tags.
+#
+# Needs two secrets to publish: DOCKERHUB_USERNAME and DOCKERHUB_TOKEN, an access token
+# with Read & Write on the orknux organisation. Without them nothing fails — the images
+# are built and run and simply not pushed, which is also what happens on a pull request.
+name: docker
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: orknux/orknux-cli
+
+jobs:
+  build:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    outputs:
+      pushed: ${{ steps.auth.outputs.push }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Credentials are absent on a fork's pull request, and before anyone has set them at
+      # all. Neither is a failure: the build still runs and still has to succeed, it simply
+      # is not pushed. The token goes through env rather than into the test expression, so
+      # it is never part of a command line.
+      - name: Can this push?
+        id: auth
+        env:
+          TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        shell: bash
+        run: |
+          if [ -n "$TOKEN" ] && [ "$GITHUB_EVENT_NAME" != 'pull_request' ]; then
+            echo 'push=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'push=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sign in to Docker Hub
+        if: steps.auth.outputs.push == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Pushed by digest and left untagged: a tag written by one architecture is a tag the
+      # other overwrites, and the loser vanishes. The publish job below is what names them.
+      # When there is nothing to push, the image is loaded locally instead so it can be run.
+      - name: Build
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: ${{ steps.auth.outputs.push == 'true' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || 'type=docker' }}
+          # Scoped per architecture, shared across branches, which is what makes a second
+          # build of an unchanged dependency layer cost nothing.
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+
+      # The binary answering proves what the build exiting zero does not: an image missing a
+      # shared library builds perfectly and then refuses to start. That has already happened
+      # here once — distroless carries no libz.so.1 — so it is checked rather than assumed.
+      - name: Check the image runs
+        if: steps.auth.outputs.push != 'true'
+        run: |
+          docker run --rm '${{ steps.build.outputs.imageid }}' --version
+          docker run --rm '${{ steps.build.outputs.imageid }}' help > /dev/null
+
+      - name: Hand the digest on
+        if: steps.auth.outputs.push == 'true'
+        run: |
+          mkdir -p /tmp/digests
+          touch '/tmp/digests/${{ steps.build.outputs.digest }}'
+
+      - uses: actions/upload-artifact@v7
+        if: steps.auth.outputs.push == 'true'
+        with:
+          # One artifact per architecture, merged by pattern in the next job.
+          name: digest-${{ strategy.job-index }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: publish the tags
+    needs: build
+    # Only when there was something to push. Without this, a repository whose secrets are
+    # not set yet gets a red cross on every commit for a step that could never have worked.
+    if: needs.build.outputs.pushed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      # For the check at the end: running the arm64 image on this amd64 runner needs an
+      # emulator. Starting one is seconds, and `orkx --version` under it is milliseconds.
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # latest follows tags only, never main: someone who types no tag should get the last
+      # release rather than whatever was merged an hour ago. main is reachable as :edge.
+      - name: Work out the tags
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=edge,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Bind both architectures under those tags
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf "${IMAGE}@sha256:%s " *)
+
+      # Pull each tag back, on both architectures, and run it. Until this passes all that is
+      # known is that a manifest was written, not that anything named by it works.
+      - name: Check what was published
+        run: |
+          for platform in linux/amd64 linux/arm64; do
+            for tag in $(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON"); do
+              echo "== $tag on $platform"
+              docker run --rm --platform "$platform" "$tag" --version
+            done
+          done

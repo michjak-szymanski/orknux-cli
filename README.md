@@ -2,6 +2,7 @@
 
 [![build](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml/badge.svg)](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml)
 [![tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmichjak-szymanski%2Forknux-cli%2Fbadges%2Ftests.json)](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml)
+[![docker](https://img.shields.io/docker/v/orknux/orknux-cli?sort=semver&logo=docker&label=docker)](https://hub.docker.com/r/orknux/orknux-cli)
 [![licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue)](LICENSE)
 
 `orkx`, the command line client for
@@ -104,6 +105,60 @@ $env:PATH += ";$env:LOCALAPPDATA\Programs\orkx"
 
 `install.sh` prints the line to add to your profile rather than editing it, since
 `~/.local/bin` is often on PATH already and a shell profile is nobody else's to write to.
+
+## In a container
+
+```
+docker run --rm -v orkx:/config orknux/orknux-cli --version
+docker run --rm -v orkx:/config orknux/orknux-cli login --server https://orknux.example.com
+docker run --rm -v orkx:/config orknux/orknux-cli execution list
+```
+
+`linux/amd64` and `linux/arm64`, about 53 MB, built from this repository's `Dockerfile` —
+`docker build .` from a clean checkout produces the same image, since the binary is compiled
+in the first stage rather than copied in from a release.
+
+**The volume is not optional if you want to stay signed in.** `orkx` keeps its session in
+`session.json`, and a container without a volume is a new machine every time: the login
+succeeds, the container exits, and the next one has never heard of it. `ORKNUX_CONFIG_HOME`
+is set to `/config` in the image, so mounting anything there is enough. The file is written
+`0600` inside, as it is anywhere else — it holds the whole credential.
+
+**`localhost` in a container is the container.** A server on the host is not at
+`http://localhost:8080` from in here, which is the first thing to go wrong:
+
+```
+docker run --rm -it -v orkx:/config \
+  -e ORKNUX_SERVER_URL=http://host.docker.internal:8080 \
+  orknux/orknux-cli login
+
+docker run --rm -it -v orkx:/config --network host \
+  orknux/orknux-cli login                              # Linux, where host networking is real
+```
+
+`ORKNUX_SERVER_URL` is read by `login`, which is where the address is chosen; everything
+after it follows the session written to `/config`, and `server info` reports what is stored
+rather than what the environment says. So the address is given once, to the command that
+signs in, and the volume carries it from there.
+
+Unlike the binary, the image sets no default address: a default of `localhost` that means
+something different inside the container than in every other place this is documented is
+worse than having none.
+
+`chat open` is interactive, so it needs a terminal:
+
+```
+docker run --rm -it -v orkx:/config orknux/orknux-cli chat open 5
+echo "summarise last night's runs" | docker run --rm -i -v orkx:/config orknux/orknux-cli chat open 5
+```
+
+Exit codes come through unchanged, so the container works as a check the same way the binary
+does — `docker run --rm -v orkx:/config orknux/orknux-cli admin monitoring` exits 6 when
+something is unwell.
+
+Tags are `1.2.3`, `1.2`, `1`, `latest` for releases, and `edge` for the head of `main`.
+`latest` follows releases only: it should be the last thing that was tagged, not the last
+thing that was merged.
 
 Picocli's annotation processor writes the reflection metadata at compile time and JSON
 goes through kotlinx.serialization, which needs no reflection at all — so the only
