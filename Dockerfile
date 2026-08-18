@@ -18,6 +18,17 @@ RUN ./mvnw --batch-mode dependency:go-offline
 
 COPY src/ src/
 COPY LICENSE NOTICE ./
+
+# The pom stays on -SNAPSHOT in git, and an image built from main should say so — that is
+# what :edge is. A tagged build is handed the tag instead, so `orkx --version` inside the
+# container reports the version somebody asked for rather than whatever the tree carries.
+# Declared here rather than at the top so that changing it does not invalidate the layer
+# that downloaded every dependency.
+ARG VERSION=
+RUN if [ -n "$VERSION" ]; then \
+        ./mvnw --batch-mode versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false; \
+    fi
+
 RUN ./mvnw --batch-mode -Pnative package -DskipTests
 
 # Made here, not in the runtime stage: the runtime image has no shell to mkdir with. Owned by

@@ -66,6 +66,18 @@ jobs:
             echo 'push=false' >> "$GITHUB_OUTPUT"
           fi
 
+      # A tag build reports the tag; a build from main stays on -SNAPSHOT, which is what
+      # :edge is and should say. release.yml does the same thing for the loose binaries.
+      - name: What version is this?
+        id: version
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = 'tag' ]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo 'value=' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Sign in to Docker Hub
         if: steps.auth.outputs.push == 'true'
         uses: docker/login-action@v4
@@ -82,6 +94,8 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.platform }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.value }}
           outputs: ${{ steps.auth.outputs.push == 'true' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || 'type=docker' }}
           # Scoped per architecture, shared across branches, which is what makes a second
           # build of an unchanged dependency layer cost nothing.
@@ -91,11 +105,17 @@ jobs:
       # The binary answering proves what the build exiting zero does not: an image missing a
       # shared library builds perfectly and then refuses to start. That has already happened
       # here once — distroless carries no libz.so.1 — so it is checked rather than assumed.
-      - name: Check the image runs
+      - name: Check the image runs, and says the right version
         if: steps.auth.outputs.push != 'true'
+        env:
+          EXPECTED: ${{ steps.version.outputs.value }}
+          IMAGE_ID: ${{ steps.build.outputs.imageid }}
         run: |
-          docker run --rm '${{ steps.build.outputs.imageid }}' --version
-          docker run --rm '${{ steps.build.outputs.imageid }}' help > /dev/null
+          docker run --rm "$IMAGE_ID" --version
+          docker run --rm "$IMAGE_ID" help > /dev/null
+          if [ -n "$EXPECTED" ]; then
+            docker run --rm "$IMAGE_ID" --version | head -1 | grep -qx "orkx $EXPECTED"
+          fi
 
       - name: Hand the digest on
         if: steps.auth.outputs.push == 'true'
@@ -164,12 +184,21 @@ jobs:
             $(printf "${IMAGE}@sha256:%s " *)
 
       # Pull each tag back, on both architectures, and run it. Until this passes all that is
-      # known is that a manifest was written, not that anything named by it works.
+      # known is that a manifest was written, not that anything named by it works. The
+      # version is checked rather than printed: an image tagged 1.0.0 that reports
+      # 1.0.0-SNAPSHOT is exactly the kind of thing a printed line gets read past.
       - name: Check what was published
+        env:
+          EXPECTED: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           for platform in linux/amd64 linux/arm64; do
             for tag in $(jq -r '.tags[]' <<< "$DOCKER_METADATA_OUTPUT_JSON"); do
               echo "== $tag on $platform"
-              docker run --rm --platform "$platform" "$tag" --version
+              said=$(docker run --rm --platform "$platform" "$tag" --version | head -1)
+              echo "$said"
+              if [ -n "$EXPECTED" ] && [ "$said" != "orkx ${EXPECTED#v}" ]; then
+                echo "::error::$tag on $platform says '$said', not 'orkx ${EXPECTED#v}'"
+                exit 1
+              fi
             done
           done
