@@ -99,9 +99,14 @@ jobs:
 
       - name: Hand the digest on
         if: steps.auth.outputs.push == 'true'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           mkdir -p /tmp/digests
-          touch '/tmp/digests/${{ steps.build.outputs.digest }}'
+          # The bare hex, with the sha256: prefix taken off: a colon cannot appear in an
+          # artifact path — it is not a legal filename character on Windows, and the upload
+          # refuses it whatever the runner. The publish job puts the prefix back.
+          touch "/tmp/digests/${DIGEST#sha256:}"
 
       - uses: actions/upload-artifact@v7
         if: steps.auth.outputs.push == 'true'
