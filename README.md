@@ -2,7 +2,7 @@
 
 [![build](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml/badge.svg)](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml)
 [![tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmichjak-szymanski%2Forknux-cli%2Fbadges%2Ftests.json)](https://github.com/michjak-szymanski/orknux-cli/actions/workflows/build.yml)
-[![licence: AGPL v3 or later](https://img.shields.io/badge/licence-AGPL--3.0--or--later-blue)](LICENSE)
+[![licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue)](LICENSE)
 
 `orkx`, the command line client for
 [orknux-server](https://github.com/michjak-szymanski/orknux-server).
