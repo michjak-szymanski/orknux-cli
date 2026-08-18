@@ -37,7 +37,7 @@ jobs:
             asset: orkx-macos-arm64
             built: target/orkx
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag || github.ref }}
 
@@ -86,7 +86,7 @@ jobs:
             shasum -a 256 "${{ matrix.asset }}" > "${{ matrix.asset }}.sha256"
           fi
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.asset }}
           path: dist/
@@ -98,7 +98,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
